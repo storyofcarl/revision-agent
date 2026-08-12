@@ -114,7 +114,9 @@ def submit_video(model_ep, content, *, ratio, resolution, duration, generate_aud
     r = requests.post(f"{ark_base()}/contents/generations/tasks", json=payload,
                       headers={"Authorization": f"Bearer {_key('ARK_API_KEY')}",
                                "Content-Type": "application/json"}, timeout=120)
-    r.raise_for_status()
+    if r.status_code >= 400:
+        # surface Ark's error body — a bare 400 is undiagnosable
+        raise RuntimeError(f"Ark submit {r.status_code}: {r.text[:300]}")
     tid = r.json().get("id")
     if not tid:
         sys.exit(f"Task creation returned no id: {json.dumps(r.json())[:300]}")

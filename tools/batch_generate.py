@@ -74,29 +74,59 @@ def run_batch(job_dir, notes_path, dry, max_concurrent):
 
     active = {}   # note_id -> (note, task_id)
     pending = list(plans)
+    # re-attach: an interrupted run's in-flight tasks resume from
+    # lineage.active_task instead of resubmitting (paid work is kept)
+    for n, p in list(pending):
+        tid = n.get("lineage", {}).get("active_task")
+        if tid:
+            active[n["note_id"]] = (n, tid)
+            pending.remove((n, p))
+            print(f"re-attached {n['note_id']} -> task {tid}")
     while pending or active:
         while pending and len(active) < max_concurrent:
             n, p = pending.pop(0)
-            rv = p.get("ref_video")
-            if rv and not ark.is_remote(rv):
-                local = os.path.join(job_dir, rv)
-                if not os.path.exists(local):
-                    local = rv          # repo-relative / absolute path
-                # host a working-res proxy — Ark fetches the URL itself and
-                # times out on hi-res sources
-                proxy = ark.proxy_clip(local, os.path.join(
-                    job_dir, "revision", "proxies",
-                    os.path.basename(str(rv))))
-                rv = ark.upload_hosted(proxy, cache)
-            content = ark.build_content(p["prompt"], ref_video_url=rv,
-                                        first_frame=p.get("first_frame"),
-                                        last_frame=p.get("last_frame"),
-                                        reference_images=p.get("reference_images", []),
-                                        ref_audio=p.get("ref_audio"))
-            tid = ark.submit_video(ark.ENDPOINTS[p["model_key"]], content,
-                                   ratio=p["ratio"], resolution=p["resolution"],
-                                   duration=p["duration"],
-                                   generate_audio=p.get("generate_audio", True))
+            try:
+                rv = p.get("ref_video")
+                if rv and not ark.is_remote(rv):
+                    local = os.path.join(job_dir, rv)
+                    if not os.path.exists(local):
+                        local = rv          # repo-relative / absolute path
+                    # host a working-res proxy — Ark fetches the URL itself
+                    # and times out on hi-res sources
+                    proxy = ark.proxy_clip(local, os.path.join(
+                        job_dir, "revision", "proxies",
+                        os.path.basename(str(rv))))
+                    rv = ark.upload_hosted(proxy, cache)
+                content = ark.build_content(p["prompt"], ref_video_url=rv,
+                                            first_frame=p.get("first_frame"),
+                                            last_frame=p.get("last_frame"),
+                                            reference_images=p.get("reference_images", []),
+                                            ref_audio=p.get("ref_audio"))
+                tid = None
+                for attempt in (1, 2, 3):
+                    try:
+                        tid = ark.submit_video(
+                            ark.ENDPOINTS[p["model_key"]], content,
+                            ratio=p["ratio"], resolution=p["resolution"],
+                            duration=p["duration"],
+                            generate_audio=p.get("generate_audio", True))
+                        break
+                    except Exception as e:
+                        print(f"  {n['note_id']}: submit attempt {attempt} "
+                              f"failed: {e}")
+                        if attempt < 3:
+                            time.sleep(5 * attempt)
+                if tid is None:
+                    raise RuntimeError("all submit attempts failed")
+            except Exception as e:
+                # one bad submission must never kill the batch or orphan
+                # the in-flight tasks
+                print(f"SUBMIT FAILED {n['note_id']}: {e}")
+                n["status"] = "failed"
+                save(doc, notes_path)
+                continue
+            n["lineage"]["active_task"] = tid
+            save(doc, notes_path)        # task id on disk before we rely on it
             active[n["note_id"]] = (n, tid)
             print(f"submitted {n['note_id']} -> task {tid}")
         time.sleep(CHECK_INTERVAL_S)
@@ -115,11 +145,13 @@ def run_batch(job_dir, notes_path, dry, max_concurrent):
                      "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                      "verdict": None})
                 n["status"] = "generated"
+                n["lineage"].pop("active_task", None)
                 save(doc, notes_path)            # after EVERY completion: resume loses nothing
                 del active[nid]
                 print(f"done {nid} -> {out}")
             elif st == "failed":
                 n["status"] = "failed"
+                n["lineage"].pop("active_task", None)
                 save(doc, notes_path)
                 del active[nid]
                 print(f"FAILED {nid} (task {tid}) — diagnose before resubmitting; "
