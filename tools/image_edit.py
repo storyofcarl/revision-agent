@@ -54,10 +54,13 @@ def next_version_path(still, out_dir):
     n = max(ns, default=0) + 1
     return os.path.join(out_dir, f"{stem}_v{n}.png"), n
 
-def edit_wavespeed(model_key, still, prompt, out_path, cache_path, refs=()):
+def edit_wavespeed(model_key, still, prompt, out_path, cache_path, refs=(),
+                   aspect_ratio=None):
     """Submit to a WaveSpeed edit model, poll /predictions/{id}/result,
     download the first output. refs are additional reference images
-    (character sheets, target frames) appended after the still."""
+    (character sheets, target frames) appended after the still.
+    aspect_ratio pins the output frame — REQUIRED in practice when refs
+    of a different shape are attached, or the model picks its own."""
     hosted = supabase_upload.upload(still, cache_path, prefix="stills")["url"]
     images = [hosted] + [supabase_upload.upload(p, cache_path, prefix="refs")["url"]
                          for p in refs]
@@ -65,9 +68,11 @@ def edit_wavespeed(model_key, still, prompt, out_path, cache_path, refs=()):
     if not key:
         fail("missing_env", "WAVESPEED_API_KEY is not set — populate the repo .env")
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    payload = {"prompt": prompt, "images": images, "output_format": "png"}
+    if aspect_ratio:
+        payload["aspect_ratio"] = aspect_ratio
     r = requests.post(f"{WS_BASE}/{WS_MODELS[model_key]}", headers=headers,
-                      json={"prompt": prompt, "images": images,
-                            "output_format": "png"}, timeout=120)
+                      json=payload, timeout=120)
     if r.status_code >= 400:
         fail("submit_failed", f"WaveSpeed returned {r.status_code}: {r.text[:300]}")
     task_id = r.json()["data"]["id"]
@@ -100,6 +105,9 @@ def main():
     ap.add_argument("--refs", nargs="*", default=[],
                     help="reference images sent with the still (WaveSpeed "
                          "editors only); address them by order in the prompt")
+    ap.add_argument("--aspect-ratio",
+                    help="pin the output frame (e.g. 21:9). Use whenever "
+                         "--refs mixes shapes, or the editor picks its own")
     ap.add_argument("--mock", action="store_true",
                     help="no network/spend; copy input to versioned output (tests)")
     args = ap.parse_args()
@@ -126,7 +134,7 @@ def main():
                            image=args.still, out_path=out_path)
     else:
         edit_wavespeed(args.model, args.still, args.prompt, out_path, cache_path,
-                       refs=args.refs)
+                       refs=args.refs, aspect_ratio=args.aspect_ratio)
 
     res = {"out": out_path.replace("\\", "/"), "model": args.model,
            "version": version}
