@@ -179,25 +179,34 @@ def main():
 
     os.makedirs(out_dir, exist_ok=True)
     for r in renders:
-        if len(r["shots"]) == 1:
-            src = os.path.join(clip_dir, r["shots"][0] + ".mp4")
-        else:
-            src = os.path.join(out_dir, r["render"] + "_src.mp4")
-            parts = [os.path.join(clip_dir, sid + ".mp4") for sid in r["shots"]]
-            for pp in parts:
-                if not os.path.exists(pp):
-                    fail("no_such_file", f"bundle partner clip {pp} does not exist")
-            concat_clips(parts, src)
-        src_url = ark.upload_hosted(src, cache_path)
-        content = ark.build_content(WHITE_PROMPT, ref_video_url=src_url)
-        tid = ark.submit_video(ark.ENDPOINTS["seedance_mini"], content,
-                               ratio=args.ratio, resolution="480p",
-                               duration=math.ceil(r["duration_s"]),
-                               generate_audio=False)
-        print(f"{r['render']}: task {tid} submitted ({r['duration_s']}s)")
-        url = ark.poll_video(tid)
         local = os.path.join(out_dir, r["render"] + ".mp4")
-        ark.download(url, local)
+        if os.path.exists(local):
+            # resume: an interrupted run's finished renders are never
+            # resubmitted (paid work is kept)
+            print(f"{r['render']}: exists - reusing, no resubmission")
+        else:
+            if len(r["shots"]) == 1:
+                src = os.path.join(clip_dir, r["shots"][0] + ".mp4")
+            else:
+                src = os.path.join(out_dir, r["render"] + "_src.mp4")
+                parts = [os.path.join(clip_dir, sid + ".mp4") for sid in r["shots"]]
+                for pp in parts:
+                    if not os.path.exists(pp):
+                        fail("no_such_file", f"bundle partner clip {pp} does not exist")
+                concat_clips(parts, src)
+            # host a working-res proxy: Ark fetches the URL itself and times
+            # out on hi-res sources; it renders at 480p regardless
+            proxy = ark.proxy_clip(src, os.path.join(
+                out_dir, "_proxy", r["render"] + ".mp4"))
+            src_url = ark.upload_hosted(proxy, cache_path)
+            content = ark.build_content(WHITE_PROMPT, ref_video_url=src_url)
+            tid = ark.submit_video(ark.ENDPOINTS["seedance_mini"], content,
+                                   ratio=args.ratio, resolution="480p",
+                                   duration=math.ceil(r["duration_s"]),
+                                   generate_audio=False)
+            print(f"{r['render']}: task {tid} submitted ({r['duration_s']}s)")
+            url = ark.poll_video(tid)
+            ark.download(url, local)
         r["local"] = local.replace("\\", "/")
         r["hosted_url"] = ark.upload_hosted(local, cache_path)
         print(f"{r['render']}: done -> {r['hosted_url']}")

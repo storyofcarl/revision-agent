@@ -68,6 +68,19 @@ def upload_hosted(path, cache_path):
     import supabase_upload
     return supabase_upload.upload(path, cache_path)["url"]
 
+def proxy_clip(path, out_path, height=480):
+    """Working-res proxy for hosting reference video. Ark fetches the URL
+    itself and TIMES OUT on hi-res sources (a 60MB 4K clip failed on the
+    Spookley pilot); it renders at working res anyway, so host a proxy."""
+    import subprocess
+    if not os.path.exists(out_path):
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", path,
+                        "-vf", f"scale=-2:{height}", "-c:v", "libx264",
+                        "-preset", "veryfast", "-crf", "23", "-an", out_path],
+                       check=True)
+    return out_path
+
 # ---------------- Seedance video task -------------------------------------
 def build_content(prompt, ref_video_url=None, first_frame=None, last_frame=None,
                   reference_images=(), ref_audio=None):

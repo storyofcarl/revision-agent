@@ -79,7 +79,15 @@ def run_batch(job_dir, notes_path, dry, max_concurrent):
             n, p = pending.pop(0)
             rv = p.get("ref_video")
             if rv and not ark.is_remote(rv):
-                rv = ark.upload_hosted(os.path.join(job_dir, rv), cache)
+                local = os.path.join(job_dir, rv)
+                if not os.path.exists(local):
+                    local = rv          # repo-relative / absolute path
+                # host a working-res proxy — Ark fetches the URL itself and
+                # times out on hi-res sources
+                proxy = ark.proxy_clip(local, os.path.join(
+                    job_dir, "revision", "proxies",
+                    os.path.basename(str(rv))))
+                rv = ark.upload_hosted(proxy, cache)
             content = ark.build_content(p["prompt"], ref_video_url=rv,
                                         first_frame=p.get("first_frame"),
                                         last_frame=p.get("last_frame"),
