@@ -16,7 +16,7 @@ MODULES=(
   test_white_render test_supabase_upload test_diff_gate
   test_batch_generate test_reassemble test_build_changelog
   test_frameio_adapter test_revise test_build_round_report
-  test_state test_plan_round
+  test_state test_plan_round test_shot_split
 )
 
 if [[ "${1:-}" == "--live" ]]; then
