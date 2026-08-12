@@ -15,6 +15,12 @@ Contract:
     gptimage2 run on the WaveSpeed API (WAVESPEED_API_KEY) — model IDs
     google/nano-banana-pro/edit and openai/gpt-image-2/edit, overridable
     via WS_MODEL_NANOBANANA / WS_MODEL_GPTIMAGE env vars.
+  - --refs <paths...>: reference images (character sheets, target frames)
+    sent alongside the still — the WaveSpeed editors accept multiple
+    images; the prompt should address them by order ("image 2 is the
+    official character sheet"). Not supported by seedream5pro (single
+    image input on Ark) — using --refs there is an error, not a silent
+    drop.
   - Output: <out-dir>/<still-stem>_v<N>.png, N auto-incremented, never
     overwriting. Default out-dir: <job-dir>/stills/edited (or ./edited).
   - Stdout: JSON {"out", "model", "version"}; exit 0. Failures exit
@@ -48,16 +54,19 @@ def next_version_path(still, out_dir):
     n = max(ns, default=0) + 1
     return os.path.join(out_dir, f"{stem}_v{n}.png"), n
 
-def edit_wavespeed(model_key, still, prompt, out_path, cache_path):
+def edit_wavespeed(model_key, still, prompt, out_path, cache_path, refs=()):
     """Submit to a WaveSpeed edit model, poll /predictions/{id}/result,
-    download the first output."""
+    download the first output. refs are additional reference images
+    (character sheets, target frames) appended after the still."""
     hosted = supabase_upload.upload(still, cache_path, prefix="stills")["url"]
+    images = [hosted] + [supabase_upload.upload(p, cache_path, prefix="refs")["url"]
+                         for p in refs]
     key = os.environ.get("WAVESPEED_API_KEY", "")
     if not key:
         fail("missing_env", "WAVESPEED_API_KEY is not set — populate the repo .env")
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     r = requests.post(f"{WS_BASE}/{WS_MODELS[model_key]}", headers=headers,
-                      json={"prompt": prompt, "images": [hosted],
+                      json={"prompt": prompt, "images": images,
                             "output_format": "png"}, timeout=120)
     if r.status_code >= 400:
         fail("submit_failed", f"WaveSpeed returned {r.status_code}: {r.text[:300]}")
@@ -88,12 +97,21 @@ def main():
                     help="editor (default seedream5pro per routing-and-costs)")
     ap.add_argument("--out-dir", help="output dir (default <job-dir>/stills/edited)")
     ap.add_argument("--job-dir", help="job directory (output location + logging)")
+    ap.add_argument("--refs", nargs="*", default=[],
+                    help="reference images sent with the still (WaveSpeed "
+                         "editors only); address them by order in the prompt")
     ap.add_argument("--mock", action="store_true",
                     help="no network/spend; copy input to versioned output (tests)")
     args = ap.parse_args()
     ark.load_env()
     if not os.path.exists(args.still):
         fail("no_such_file", f"{args.still} does not exist")
+    for p in args.refs:
+        if not os.path.exists(p):
+            fail("no_such_file", f"--refs {p} does not exist")
+    if args.refs and args.model == "seedream5pro" and not args.mock:
+        fail("refs_unsupported", "seedream5pro takes a single image — use "
+             "nanobananapro or gptimage2 for reference-guided edits")
     out_dir = args.out_dir or (os.path.join(args.job_dir, "stills", "edited")
                                if args.job_dir else "edited")
     os.makedirs(out_dir, exist_ok=True)
@@ -107,7 +125,8 @@ def main():
         ark.seedream_image(ark.ENDPOINTS["seedream_5_pro"], args.prompt,
                            image=args.still, out_path=out_path)
     else:
-        edit_wavespeed(args.model, args.still, args.prompt, out_path, cache_path)
+        edit_wavespeed(args.model, args.still, args.prompt, out_path, cache_path,
+                       refs=args.refs)
 
     res = {"out": out_path.replace("\\", "/"), "model": args.model,
            "version": version}
