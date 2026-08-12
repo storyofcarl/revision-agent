@@ -56,7 +56,7 @@ MIN_GEN_S = 4.0                  # Seedance generation floor (spec §5.3)
 METHOD_LABEL = {1: "white-3D + stills", 2: "stills-only",
                 3: "direct video edit", 4: "full re-do"}
 STILLS_METHODS = (1, 2)          # pass through Gate 3 with edited stills
-RES_OK = ("720p", "1080p")       # estimate_costs.py's rate table
+RES_OK = ("480p", "720p", "1080p")   # estimate_costs.py's rate table
 
 def rel(job_dir, path):
     return os.path.relpath(path, job_dir).replace("\\", "/")
@@ -219,6 +219,13 @@ def main():
     ap.add_argument("--max-concurrent", type=int,
                     help="simultaneous Ark tasks the plan assumes "
                          "(default job.yaml max_concurrent)")
+    ap.add_argument("--replan", action="store_true",
+                    help="re-plan after Gate 1 amendments: reopen step 1, "
+                         "supersede the prior plan's unresolved escalations, "
+                         "and re-run the whole chain against the amended "
+                         "notes.json. Pre-lock only - locked notes are "
+                         "immutable and a changed mind mid-round is a new "
+                         "note next round.")
     args = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         # the table quotes client prose; a cp1252 console must not kill a plan
@@ -239,6 +246,24 @@ def main():
         fail("no_shots_manifest",
              f"{manifest} does not exist — a plan needs the lineup's duration "
              f"ladder (shot_id + duration_s in lineup order)")
+
+    if args.replan:
+        locked = [n["note_id"] for n in json.load(open(notes_path))["notes"]
+                  if n.get("status") not in (None, "pending")]
+        if locked:
+            fail("locked", f"--replan is pre-lock only; {', '.join(locked)} "
+                 f"already advanced past pending - a changed mind mid-round "
+                 f"is a new note next round")
+        st = state.load(job_dir)
+        for e in st.get("escalations", []):
+            if not e.get("resolved"):
+                e["resolved"] = True
+                e["resolution"] = "superseded by --replan (Gate 1 amendment)"
+        st["steps"][STEP_INTAKE - 1]["status"] = "pending"
+        st["position"] = {"step": STEP_INTAKE, "name": "INTAKE"}
+        st["ledger_from"] = len(st.get("ledger", []))
+        state.save(job_dir, st)
+        print("replan: step 1 reopened, prior escalations superseded")
 
     if not state.start_step(job_dir, STEP_INTAKE):
         return replay(job_dir)

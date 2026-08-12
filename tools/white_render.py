@@ -125,6 +125,9 @@ def main():
     ap.add_argument("--manifest", help="shots.json (lineup order, duration_s; "
                                        "required for sub-4s bundling)")
     ap.add_argument("--out-dir", help="default <job-dir>/revision/white")
+    ap.add_argument("--ratio", default="16:9",
+                    help="aspect ratio for the white pass — match the "
+                         "project (e.g. 21:9 for scope cuts; default 16:9)")
     ap.add_argument("--job-dir", help="job directory (outputs, cache, logging)")
     ap.add_argument("--dry-run", action="store_true",
                     help="print the plan; nothing uploaded, submitted, or spent")
@@ -188,7 +191,7 @@ def main():
         src_url = ark.upload_hosted(src, cache_path)
         content = ark.build_content(WHITE_PROMPT, ref_video_url=src_url)
         tid = ark.submit_video(ark.ENDPOINTS["seedance_mini"], content,
-                               ratio="16:9", resolution="480p",
+                               ratio=args.ratio, resolution="480p",
                                duration=math.ceil(r["duration_s"]),
                                generate_audio=False)
         print(f"{r['render']}: task {tid} submitted ({r['duration_s']}s)")
