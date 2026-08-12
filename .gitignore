@@ -1,0 +1,13 @@
+.env
+jobs/*
+!jobs/.gitkeep
+logs/
+__pycache__/
+*.pyc
+uploads.json
+quota-probe.json
+tests/fixtures/generated/
+*.mp4
+*.png
+!tests/fixtures/**/*.mp4
+!tests/fixtures/**/*.png

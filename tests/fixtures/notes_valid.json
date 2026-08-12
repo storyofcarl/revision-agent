@@ -1,0 +1,67 @@
+{
+  "round": 1,
+  "created": "2026-08-12",
+  "job_dir": "tests/fixtures/generated",
+  "mode": "standalone",
+  "working_res": "720p",
+  "notes": [
+    {
+      "note_id": "N-001",
+      "source": {"type": "email", "ref": "chunk2", "author": "Dana Client"},
+      "raw_text": "At 0:05 the jacket should be red, not blue.",
+      "timecode": {"in": "00:00:01:00", "out": "00:00:03:00", "fps_base": 24},
+      "resolved_shots": ["SQ001-SC001-SH001"],
+      "scope": "local",
+      "interpretation": "Change the jacket color from blue to red in SH001.",
+      "acceptance_criteria": [
+        {"id": "N-001-c1", "question": "Is the jacket red in every frame of the shot?", "expected": "yes"}
+      ],
+      "region": {"type": "bbox", "data": "0.68,0.68,0.24,0.24"},
+      "method": 3,
+      "assets_touched": [],
+      "est_cost": {"per_attempt_usd": 0.98, "expected_attempts": 4, "expected_usd": 3.92},
+      "status": "pending",
+      "lineage": {"parent_clip": "clips/SQ001-SC001-SH001.mp4", "revision_cycle": 1,
+                  "approved_stills": [], "white_pass": null, "candidates": []}
+    },
+    {
+      "note_id": "N-002",
+      "source": {"type": "email", "ref": "chunk4", "author": "Dana Client"},
+      "raw_text": "Remove the third background character whenever she appears.",
+      "timecode": null,
+      "resolved_shots": [],
+      "scope": "foundational",
+      "interpretation": "Remove the third background character from the canonical crowd asset; fan out to affected shots.",
+      "acceptance_criteria": [
+        {"id": "N-002-c1", "question": "Is the third background character absent from the frame?", "expected": "yes"}
+      ],
+      "region": null,
+      "method": 2,
+      "assets_touched": ["refs/crowd.png"],
+      "est_cost": {"per_attempt_usd": 0.6, "expected_attempts": 3, "expected_usd": 1.8},
+      "status": "pending",
+      "lineage": {"parent_clip": null, "revision_cycle": 1,
+                  "approved_stills": [], "white_pass": null, "candidates": []}
+    },
+    {
+      "note_id": "N-003",
+      "source": {"type": "email", "ref": "chunk3", "author": "Dana Client"},
+      "raw_text": "00:06 - 00:08 the sign in the background says the wrong thing",
+      "timecode": {"in": "00:00:06:00", "out": "00:00:08:00", "fps_base": 24},
+      "resolved_shots": ["SQ001-SC001-SH002", "SQ001-SC001-SH003"],
+      "scope": "local",
+      "interpretation": "Correct the background sign text across the two shots the range touches.",
+      "acceptance_criteria": [
+        {"id": "N-003-c1", "question": "Does the sign read 'OPEN' with no other text?", "expected": "yes"}
+      ],
+      "region": null,
+      "method": 1,
+      "assets_touched": [],
+      "est_cost": {"per_attempt_usd": 1.2, "expected_attempts": 3, "expected_usd": 3.6},
+      "status": "pending",
+      "lineage": {"parent_clip": "clips/SQ001-SC001-SH002.mp4", "revision_cycle": 1,
+                  "approved_stills": [], "white_pass": null, "candidates": []}
+    }
+  ],
+  "totals": {"expected_usd": 9.32, "notes": 3, "shots_touched": 3}
+}

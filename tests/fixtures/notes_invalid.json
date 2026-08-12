@@ -1,0 +1,90 @@
+{
+  "round": 1,
+  "created": "2026-08-12",
+  "job_dir": "tests/fixtures/generated",
+  "mode": "standalone",
+  "working_res": "720p",
+  "notes": [
+    {
+      "note_id": "N-101",
+      "source": {"type": "email", "ref": "x", "author": "A"},
+      "raw_text": "missing interpretation field",
+      "timecode": null,
+      "resolved_shots": ["SQ001-SC001-SH001"],
+      "scope": "local",
+      "acceptance_criteria": [
+        {"id": "N-101-c1", "question": "Is the hat green?", "expected": "yes"}
+      ],
+      "method": 2,
+      "est_cost": {"per_attempt_usd": 1, "expected_attempts": 3, "expected_usd": 3},
+      "status": "pending",
+      "lineage": {"parent_clip": null, "revision_cycle": 1, "approved_stills": [], "white_pass": null, "candidates": []}
+    },
+    {
+      "note_id": "N-101",
+      "source": {"type": "email", "ref": "x", "author": "A"},
+      "raw_text": "duplicate id, bad scope, bad method",
+      "timecode": null,
+      "resolved_shots": ["SQ001-SC001-SH001"],
+      "scope": "global",
+      "interpretation": "x",
+      "acceptance_criteria": [
+        {"id": "N-101-c1", "question": "Is the hat green?", "expected": "yes"}
+      ],
+      "method": 5,
+      "est_cost": {"per_attempt_usd": 1, "expected_attempts": 3, "expected_usd": 3},
+      "status": "pending",
+      "lineage": {"parent_clip": null, "revision_cycle": 1, "approved_stills": [], "white_pass": null, "candidates": []}
+    },
+    {
+      "note_id": "N-103",
+      "source": {"type": "email", "ref": "x", "author": "A"},
+      "raw_text": "foundational without assets_touched",
+      "timecode": null,
+      "resolved_shots": [],
+      "scope": "foundational",
+      "interpretation": "x",
+      "acceptance_criteria": [
+        {"id": "N-103-c1", "question": "Is the logo removed?", "expected": "yes"}
+      ],
+      "method": 2,
+      "assets_touched": [],
+      "est_cost": {"per_attempt_usd": 1, "expected_attempts": 3, "expected_usd": 3},
+      "status": "pending",
+      "lineage": {"parent_clip": null, "revision_cycle": 1, "approved_stills": [], "white_pass": null, "candidates": []}
+    },
+    {
+      "note_id": "N-104",
+      "source": {"type": "email", "ref": "x", "author": "A"},
+      "raw_text": "local without resolved_shots, no criteria",
+      "timecode": null,
+      "resolved_shots": [],
+      "scope": "local",
+      "interpretation": "x",
+      "acceptance_criteria": [],
+      "method": 2,
+      "assets_touched": [],
+      "est_cost": {"per_attempt_usd": 1, "expected_attempts": 3, "expected_usd": 3},
+      "status": "pending",
+      "lineage": {"parent_clip": null, "revision_cycle": 1, "approved_stills": [], "white_pass": null, "candidates": []}
+    },
+    {
+      "note_id": "N-105",
+      "source": {"type": "email", "ref": "x", "author": "A"},
+      "raw_text": "criterion not a question; vague criterion",
+      "timecode": null,
+      "resolved_shots": ["SQ001-SC001-SH001"],
+      "scope": "local",
+      "interpretation": "x",
+      "acceptance_criteria": [
+        {"id": "N-105-c1", "question": "The jacket is red", "expected": "yes"},
+        {"id": "N-105-c2", "question": "Does the shot feel more cinematic?", "expected": "yes"}
+      ],
+      "method": 2,
+      "assets_touched": [],
+      "est_cost": {"per_attempt_usd": 1, "expected_attempts": 3, "expected_usd": 3},
+      "status": "pending",
+      "lineage": {"parent_clip": null, "revision_cycle": 1, "approved_stills": [], "white_pass": null, "candidates": []}
+    }
+  ]
+}
