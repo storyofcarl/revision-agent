@@ -27,7 +27,7 @@ Behavior:
 Exit 0 on success with the preamble on stdout; non-zero with a JSON error
 object on stderr otherwise.
 """
-import argparse, json, os, shutil, sys, time
+import argparse, json, os, re, shutil, sys, time
 
 from _common import fail
 
@@ -86,16 +86,21 @@ def apply_overrides(yaml_text, overrides):
                 fail("bad_config", f"unknown gate {gk!r}")
             if v not in ("human", "agent"):
                 fail("bad_config", f"gate value must be human|agent, got {v!r}")
-            import re
             yaml_text = re.sub(rf"^(  {gk}: )\w+", rf"\g<1>{v}", yaml_text,
                                flags=re.M)
         else:
-            import re
             pat = rf"^({k}: )\S+"
             if not re.search(pat, yaml_text, flags=re.M):
                 fail("bad_config", f"unknown job.yaml key {k!r}")
             yaml_text = re.sub(pat, rf"\g<1>{v}", yaml_text, flags=re.M)
     return yaml_text
+
+def ceiling_of(yaml_text):
+    """job.yaml is the budget authority (spec §5.4.2) — seed state.json from
+    the text actually written, so --config budget_ceiling_usd=N is honoured
+    and the two files never disagree."""
+    m = re.search(r"^budget_ceiling_usd: ([\d.]+)", yaml_text, flags=re.M)
+    return float(m.group(1)) if m else 0.0
 
 def main():
     ap = argparse.ArgumentParser(
@@ -132,7 +137,8 @@ def main():
                                 "GENERATE", "VERIFY", "REPAIR", "REASSEMBLE",
                                 "RESUBMIT"])],
                  "invocations": [], "ledger": [], "escalations": [],
-                 "budget": {"ceiling_usd": 50.0, "actual_usd": 0.0}}
+                 "budget": {"ceiling_usd": ceiling_of(yaml_text),
+                            "actual_usd": 0.0}}
     else:
         if args.config:
             fail("config_after_scaffold",
