@@ -59,6 +59,21 @@ def duration(path):
     except (KeyError, ValueError):
         fail("no_duration", f"ffprobe reports no container duration for {path}")
 
+def video_duration(path):
+    """Video-stream duration. The written-clips verification uses this, not
+    the container duration: AAC priming pads each re-encoded clip's audio by
+    ~20-45ms, which across dozens of clips sums to a false lineup mismatch."""
+    out = subprocess.run(
+        ["ffprobe", "-v", "quiet", "-print_format", "json", "-select_streams",
+         "v:0", "-show_streams", path],
+        capture_output=True, text=True, check=True)
+    try:
+        streams = json.loads(out.stdout)["streams"]
+        d = streams[0].get("duration")
+        return float(d) if d is not None else duration(path)
+    except (KeyError, IndexError, ValueError):
+        return duration(path)
+
 def detect_cuts(cut, threshold):
     """pts_time of every frame scoring above the scene threshold."""
     p = subprocess.run(
@@ -193,7 +208,7 @@ def main():
     for shot in plan:
         path = os.path.join(clips_dir, shot["shot_id"] + ".mp4")
         cut_clip(args.cut, shot, path)
-        written += duration(path)
+        written += video_duration(path)
     check_sum("written clips", written, total)
 
     with open(manifest, "w") as fh:
