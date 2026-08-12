@@ -13,11 +13,27 @@ def probe(clip):
         ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format",
          "-show_streams", clip], capture_output=True, text=True, check=True)
     meta = json.loads(out.stdout)
+    # video-stream duration, not container: AAC priming pads the container
+    # ~20-45ms past the last video frame, and a last-frame seek inside that
+    # pad writes nothing (ffmpeg still exits 0)
+    for s in meta.get("streams", []):
+        if s.get("codec_type") == "video" and s.get("duration"):
+            return float(s["duration"])
     return float(meta["format"]["duration"])
 
 def grab(clip, t, path):
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", f"{t:.3f}", "-i",
                     clip, "-frames:v", "1", "-q:v", "1", path], check=True)
+    # a seek past the final frame exits 0 with no file — walk back one
+    # frame interval at a time rather than fail silently
+    steps = 0
+    while not os.path.exists(path) and t > 0 and steps < 5:
+        t = max(t - 1 / 24, 0.0)
+        steps += 1
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-ss", f"{t:.3f}", "-i",
+                        clip, "-frames:v", "1", "-q:v", "1", path], check=True)
+    if not os.path.exists(path):
+        raise SystemExit(f"could not extract a frame near t={t:.3f}s from {clip}")
 
 def main():
     clip, out_dir = sys.argv[1], sys.argv[2]
